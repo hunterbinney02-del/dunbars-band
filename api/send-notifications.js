@@ -40,23 +40,28 @@ export default async function handler(req, res) {
   const today = new Date().toISOString().split('T')[0];
 
   const { data: notifications, error } = await supabase
-    .from('notifications')
-    .select('*, Users(*)')
-    .eq('send_date', today)
-    .eq('sent', false);
+  .from('notifications')
+  .select('*')
+  .eq('send_date', today)
+  .eq('sent', false);
 
   if (error) return res.status(500).json({ error: error.message });
   if (!notifications.length) return res.status(200).json({ message: 'No notifications today' });
 
   for (const notif of notifications) {
-    const friend = notif.Users;
+   const { data: friendData } = await supabase
+  .from('Users')
+  .select('*')
+  .eq('id', notif.friend_id)
+  .single();
+const friend = friendData;
     const template = alertMessages[notif.type];
     if (!template || !friend) continue;
 
     await resend.emails.send({
       from: 'Dunbars Band <onboarding@resend.dev>',
       to: process.env.NOTIFY_EMAIL,
-      subject: template.subject,
+      subject: template.subject(friend.name),
       html: `
         <div style="font-family:Georgia,serif;max-width:480px;margin:0 auto;padding:32px;background:#0d0a04;color:#e8c87a;">
           <h2 style="font-weight:400;margin:0 0 16px;">${template.subject}</h2>
